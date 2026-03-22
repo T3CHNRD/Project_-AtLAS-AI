@@ -27,13 +27,31 @@ services:
     depends_on:
       - ollama
 
+  # ─── The Bridge (MCP / Model Context Protocol) ──────────────────────────────
+  mcp-server:
+    image: node:20-slim
+    container_name: atlas_bridge
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./mcp-config:/app/config
+    command: npx @modelcontextprotocol/server-ollama --host ollama --port 11434
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
   # ─── The Hands (Autonomous Agent) ──────────────────────────────────────────
   openclaw:
-    build: ./openclaw
+    image: ghcr.io/openclaw/openclaw:latest
     container_name: atlas_agent
     depends_on:
       - ollama
-    env_file: .env
+      - mcp-server
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MCP_SERVER_URL=http://mcp-server:3000
+    volumes:
+      - ~/Library/Mobile\ Documents/com~apple~CloudDocs/Active_2025_2026:/data/archives
     restart: unless-stopped
 
 volumes:
