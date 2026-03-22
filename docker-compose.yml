@@ -29,7 +29,8 @@ services:
              python manage.py runserver 0.0.0.0:8000"
 
   # ─── The Bridge (MCP Server) ───────────────────────────────────────────────
-  # Standardises how OpenClaw speaks to the Python UI
+  # @modelcontextprotocol/server-ollama is not yet published on npm.
+  # Container stays alive on port 3000; replace command when the package lands.
   mcp-server:
     image: node:20-slim
     container_name: atlas_bridge
@@ -37,7 +38,7 @@ services:
       - "3000:3000"
     volumes:
       - ./mcp-config:/app/config
-    command: npx @modelcontextprotocol/server-ollama --host ollama --port 11434
+    command: sh -c "echo '[atlas_bridge] MCP placeholder — awaiting @modelcontextprotocol/server-ollama' && tail -f /dev/null"
 
   # ─── The Hands (OpenClaw Agent) ────────────────────────────────────────────
   openclaw:
