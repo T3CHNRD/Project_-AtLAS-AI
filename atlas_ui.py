@@ -32,10 +32,11 @@ OLLAMA_URL   = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2"
 
 CLERK_SYSTEM_PROMPT = (
-    "You are Atlas, a witty, sharp, professional Court Clerk. "
-    "Summarize this text in 2 precise sentences and recommend which folder "
-    "inside /Active_2025_2026/ it belongs in. "
-    "Add a robotic barking sound effect at the end like [Arf!]."
+    "You are Atlas, a meticulous and slightly witty Court Clerk. "
+    "Summarize this document in 2 sentences. "
+    "End the summary with a robot dog command like [Spot, file this in...] "
+    "followed by a suggested folder name in /Active_2025_2026/ based on the content. "
+    "Add a final [Arf!]."
 )
 
 COFFEE_BREAK_MSG = (
@@ -71,38 +72,36 @@ SYSTEM_PROMPT   = CLERK_SYSTEM_PROMPT  # alias kept for ChatWorker
 # ─── ClerkWorker ─────────────────────────────────────────────────────────────
 
 class ClerkWorker(QThread):
-    """Background thread that processes a dropped file through Ollama.
+    """Background thread: extracts text from a dropped file and queries Ollama.
 
     Signals
     -------
-    summaryReady : str  — The clerk's witty 2-sentence summary + folder rec.
-    dogStatus    : str  — 'running' when work starts, 'idle' when done.
-    error_occurred: str — User-facing error message (Ollama unreachable, etc.).
+    processing_started : str  — Emitted with the filename when work begins.
+    summary_ready      : str  — Emitted with the clerk's Ollama response.
+    error_occurred     : str  — Emitted with a user-facing error message.
     """
 
-    summaryReady   = pyqtSignal(str)
-    dogStatus      = pyqtSignal(str)
-    error_occurred = pyqtSignal(str)
+    processing_started = pyqtSignal(str)  # filename
+    summary_ready      = pyqtSignal(str)  # Ollama response
+    error_occurred     = pyqtSignal(str)  # error message
 
     def __init__(self, file_path: str, parent=None):
         super().__init__(parent)
         self._file_path = file_path
 
     def run(self):
-        self.dogStatus.emit("running")
+        name = Path(self._file_path).name
+        self.processing_started.emit(name)
 
         raw = extract_text(self._file_path)
         if not raw.strip() or raw.startswith("[extraction error"):
-            name = Path(self._file_path).name
-            self.dogStatus.emit("idle")
             self.error_occurred.emit(
-                f"Objection — I couldn\u2019t read \u2018{name}\u2019. "
+                f"Objection \u2014 I couldn\u2019t read \u2018{name}\u2019. "
                 "Supported formats: PDF, DOCX, TXT, MD, CSV, JSON, YAML. [Arf!]"
             )
             return
 
-        snippet = raw[:2000]
-        prompt  = f"{CLERK_SYSTEM_PROMPT}\n\nDocument:\n{snippet}"
+        prompt = f"{CLERK_SYSTEM_PROMPT}\n\nDocument:\n{raw[:2000]}"
 
         try:
             resp = requests.post(
@@ -111,14 +110,11 @@ class ClerkWorker(QThread):
                 timeout=120,
             )
             resp.raise_for_status()
-            text = resp.json().get("response", "").strip()
-            self.summaryReady.emit(text)
+            self.summary_ready.emit(resp.json().get("response", "").strip())
         except requests.exceptions.ConnectionError:
             self.error_occurred.emit(COFFEE_BREAK_MSG)
         except Exception as exc:  # noqa: BLE001
             self.error_occurred.emit(str(exc))
-        finally:
-            self.dogStatus.emit("idle")
 
 
 # ─── ChatWorker ───────────────────────────────────────────────────────────────
@@ -149,12 +145,18 @@ class ChatWorker(QThread):
 
 
 class DragDropArea(QLabel):
-    """Drag-and-drop target. Emits fileAccepted(path) for each dropped file."""
+    """Drag-and-drop target.
 
-    fileAccepted = pyqtSignal(str)  # emits local file path
+    On drop, instantiates a ClerkWorker directly and wires its signals to
+    the provided ChatHistory and RobotDog widgets.
+    """
 
-    def __init__(self, parent=None):
+    def __init__(self, chat_history: "ChatHistory", robot_dog: "RobotDog", parent=None):
         super().__init__(parent)
+        self._chat    = chat_history
+        self._dog     = robot_dog
+        self._workers: list[ClerkWorker] = []  # keep refs alive until thread finishes
+
         self.setText("Drop a file for Spot to fetch\u2026")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setAcceptDrops(True)
@@ -196,7 +198,7 @@ class DragDropArea(QLabel):
         for url in urls:
             path = url.toLocalFile()
             if path:
-                self.fileAccepted.emit(path)
+                self._dispatch(path)
         event.acceptProposedAction()
 
     def _reset_border(self):
@@ -204,6 +206,33 @@ class DragDropArea(QLabel):
             f"border: 1px dashed {ACCENT}",
             f"border: 1px dashed {BORDER_DASHED}",
         ))
+
+    # ── Worker wiring ──────────────────────────────────────────────────────────
+    def _dispatch(self, path: str):
+        worker = ClerkWorker(path)
+        worker.processing_started.connect(self._on_processing_started)
+        worker.summary_ready.connect(self._on_summary_ready)
+        worker.error_occurred.connect(self._on_error)
+        worker.finished.connect(
+            lambda: self._workers.remove(worker) if worker in self._workers else None
+        )
+        self._workers.append(worker)
+        worker.start()
+
+    def _on_processing_started(self, filename: str):
+        self._dog.set_state("running")
+        self._chat.append_message(
+            "Clerk Atlas", f"Spot! Retrieve! Scanning {filename}\u2026"
+        )
+        self._chat.append_thinking()
+
+    def _on_summary_ready(self, text: str):
+        self._chat.replace_thinking(text)
+        self._dog.set_state("idle")
+
+    def _on_error(self, message: str):
+        self._chat.replace_thinking(f"\u26a0\ufe0f {message}")
+        self._dog.set_state("error")
 
 
 class RobotDog(QLabel):
@@ -460,8 +489,8 @@ class AtlasWindow(QMainWindow):
         self._chat_history.append_message("Clerk Atlas", WELCOME_MSG)
 
         # Drag-and-drop area (top section)
-        self._drop_area = DragDropArea()
-        self._drop_area.fileAccepted.connect(self._on_file_accepted)
+        # Constructed after chat_history and robot_dog so it can reference them.
+        self._drop_area = DragDropArea(self._chat_history, self._robot_dog)
         content_layout.addWidget(self._drop_area)
 
         # Chat history (middle section)
@@ -473,24 +502,6 @@ class AtlasWindow(QMainWindow):
         content_layout.addWidget(self._chat_input)
 
     # ── Signal handlers ────────────────────────────────────────────────────────
-    def _on_file_accepted(self, path: str):
-        """Fires when DragDropArea.fileAccepted is emitted."""
-        name = Path(path).name
-        # Immediate clerk dispatch message
-        self._chat_history.append_message(
-            "Clerk Atlas", f"Spot! Retrieve! Scanning {name}\u2026"
-        )
-        self._chat_history.append_thinking()
-
-        # Dog goes running immediately (main thread, responsive)
-        self._robot_dog.set_state("running")
-
-        worker = ClerkWorker(path)
-        worker.summaryReady.connect(self._on_summary_ready)
-        worker.dogStatus.connect(self._robot_dog.set_state)   # 'idle' on finish
-        worker.error_occurred.connect(self._on_worker_error)
-        self._start_worker(worker)
-
     def _on_message_sent(self, text: str):
         self._chat_history.append_message("You", text)
         self._chat_history.append_thinking()
