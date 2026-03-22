@@ -1,0 +1,40 @@
+services:
+
+  # ─── The Brain ──────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    container_name: atlas_brain
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  # ─── The Back Office (Settings Panel) ──────────────────────────────────────
+  settings-panel:
+    image: python:3.11-slim
+    container_name: atlas_settings
+    ports:
+      - "8010:8000"
+    volumes:
+      - ./django-smallstack:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install -r requirements.txt &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  # ─── The Hands (Autonomous Agent) ──────────────────────────────────────────
+  openclaw:
+    build: ./openclaw
+    container_name: atlas_agent
+    depends_on:
+      - ollama
+    env_file: .env
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

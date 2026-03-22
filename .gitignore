@@ -1,110 +1,120 @@
-# ─── Python ───────────────────────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-eggs/
-parts/
-var/
-sdist/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-.installed.cfg
-lib/
-lib64/
-MANIFEST
-
-# ─── Virtual Environments ─────────────────────────────────────────────────────
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# ─── Environment & Secrets ────────────────────────────────────────────────────
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.secret
-
-# ─── macOS ────────────────────────────────────────────────────────────────────
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-*.icloud
-
-# ─── Docker & Local Volumes ───────────────────────────────────────────────────
-docker-compose.yml
-docker-compose.override.yml
-docker-compose.*.yml
-.docker/
-volumes/
-data/
-
-# ─── IDE & Editor ─────────────────────────────────────────────────────────────
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.project
-.pydevproject
-
-# ─── Testing & Coverage ───────────────────────────────────────────────────────
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-htmlcov/
-
-# ─── Logs & Databases ─────────────────────────────────────────────────────────
-*.log
-*.sqlite
-*.sqlite3
-*.db
-logs/
-
-# ─── Jupyter ──────────────────────────────────────────────────────────────────
-.ipynb_checkpoints
-*.ipynb
-
-# ─── Distribution / Packaging ─────────────────────────────────────────────────
-.Python
-develop-eggs/
-downloads/
-eggs/
-.eggs/
-*.egg-link
-*.egg-info/
-pip-log.txt
-pip-delete-this-directory.txt
-
-# ─── Type Checking ────────────────────────────────────────────────────────────
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-
-# ─── Atlas-specific ───────────────────────────────────────────────────────────
-atlas_data/
-ollama_models/
-openclaw_cache/
+git init
+  git add .gitignore README.md atlas_ui.py
+  git commit -m "feat: Phase 1 scaffold — UI, README, and project config
+  
+  - atlas_ui.py: frameless dark PyQt6 window with drag-and-drop,
+    chat history, chat input, and Escape-to-close
+  - README.md: project overview, architecture diagram, and roadmap
+  - .gitignore: Python, macOS, venv, secrets, and Docker volumes"# ─── Python ───────────────────────────────────────────────────────────────────
+  __pycache__/
+  *.py[cod]
+  *$py.class
+  *.so
+  *.egg
+  *.egg-info/
+  dist/
+  build/
+  eggs/
+  parts/
+  var/
+  sdist/
+  wheels/
+  pip-wheel-metadata/
+  share/python-wheels/
+  .installed.cfg
+  lib/
+  lib64/
+  MANIFEST
+  
+  # ─── Virtual Environments ─────────────────────────────────────────────────────
+  venv/
+  .venv/
+  env/
+  ENV/
+  env.bak/
+  venv.bak/
+  
+  # ─── Environment & Secrets ────────────────────────────────────────────────────
+  .env
+  .env.*
+  !.env.example
+  *.pem
+  *.key
+  *.secret
+  
+  # ─── macOS ────────────────────────────────────────────────────────────────────
+  .DS_Store
+  .DS_Store?
+  ._*
+  .Spotlight-V100
+  .Trashes
+  ehthumbs.db
+  Thumbs.db
+  *.icloud
+  
+  # ─── Docker & Local Volumes ───────────────────────────────────────────────────
+  docker-compose.yml
+  docker-compose.override.yml
+- docker-composlocal.yml
+# docker-compose.example.yml is intentionally NOT ignored (tracked as reference)ml
++ docker-compose.local.yml
++ # docker-compose.example.yml is intentionally NOT ignored (tracked as reference)
+  .docker/
+  volumes/
+  data/
+  
+  # ─── IDE & Editor ─────────────────────────────────────────────────────────────
+  .vscode/
+  .idea/
+  *.swp
+  *.swo
+  *~
+  .project
+  .pydevproject
+  
+  # ─── Testing & Coverage ───────────────────────────────────────────────────────
+  .tox/
+  .nox/
+  .coverage
+  .coverage.*
+  .cache
+  nosetests.xml
+  coverage.xml
+  *.cover
+  *.py,cover
+  .hypothesis/
+  .pytest_cache/
+  htmlcov/
+  
+  # ─── Logs & Databases ─────────────────────────────────────────────────────────
+  *.log
+  *.sqlite
+  *.sqlite3
+  *.db
+  logs/
+  
+  # ─── Jupyter ──────────────────────────────────────────────────────────────────
+  .ipynb_checkpoints
+  *.ipynb
+  
+  # ─── Distribution / Packaging ─────────────────────────────────────────────────
+  .Python
+  develop-eggs/
+  downloads/
+  eggs/
+  .eggs/
+  *.egg-link
+  *.egg-info/
+  pip-log.txt
+  pip-delete-this-directory.txt
+  
+  # ─── Type Checking ────────────────────────────────────────────────────────────
+  .mypy_cache/
+  .dmypy.json
+  dmypy.json
+  .pyre/
+  
+  # ─── Atlas-specific ───────────────────────────────────────────────────────────
+  atlas_data/
+  ollama_models/
+  openclaw_cache/
