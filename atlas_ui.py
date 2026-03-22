@@ -33,7 +33,7 @@ from PyQt6.QtCore import (
     pyqtSignal, pyqtProperty,
 )
 from PyQt6.QtGui import (
-    QBrush, QColor, QFont, QPainter, QPainterPath, QPen, QPixmap,
+    QBrush, QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap,
     QRadialGradient, QPalette, QDragEnterEvent, QDropEvent,
     QTextCursor, QTextCharFormat,
 )
@@ -465,7 +465,7 @@ class HoundWidget(QWidget):
         p.fillPath(clip, QBrush(grad))
 
         # Hound graphic
-        hound_sz   = DISC_D * 0.60
+        hound_sz   = DISC_D * 0.72
         hound_rect = QRectF(cx - hound_sz / 2, cy - hound_sz / 2, hound_sz, hound_sz)
 
         if self._use_images:
@@ -623,7 +623,7 @@ class SummaryBubble(QWidget):
         self.raise_()
         try:
             self._slide.finished.disconnect()
-        except RuntimeError:
+        except (RuntimeError, TypeError):
             pass
         self._slide.setStartValue(start)
         self._slide.setEndValue(end)
@@ -634,7 +634,7 @@ class SummaryBubble(QWidget):
         end  = QPoint(curr.x() + BUBBLE_W + 20, curr.y())
         try:
             self._slide.finished.disconnect()
-        except RuntimeError:
+        except (RuntimeError, TypeError):
             pass
         self._slide.finished.connect(self.hide)
         self._slide.setStartValue(curr)
@@ -669,10 +669,22 @@ class FloatingDisc(QWidget):
         self._drag_pos = QPoint()
         self._center_on_screen()
 
+        # Start Tailscale summon listener
+        _start_summon_server(SUMMON_PORT)
+
         # Poll _SUMMON_FLAG every 300 ms (thread-safe Qt way)
         self._summon_poll = QTimer(self)
         self._summon_poll.timeout.connect(self._check_summon)
         self._summon_poll.start(300)
+
+        # Welcome greeting after window is shown
+        QTimer.singleShot(500, self._show_welcome)
+
+    def _show_welcome(self) -> None:
+        self.show_bubble(
+            "The Sentinel is active. Present a document to the Hound, "
+            "and I shall have it properly logged. [Click-Whir] [Arf!]"
+        )
 
     def _center_on_screen(self) -> None:
         s = QApplication.primaryScreen().availableGeometry()
@@ -730,11 +742,14 @@ class FloatingDisc(QWidget):
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 def main() -> None:
-    _start_summon_server(SUMMON_PORT)
-
     app = QApplication(sys.argv)
     app.setApplicationName("Atlas")
     app.setStyle("Fusion")
+
+    # Set dock / taskbar icon from the hound asset if available
+    icon_pm = _load_pixmap("hound_idle.png")
+    if icon_pm:
+        app.setWindowIcon(QIcon(icon_pm))
 
     pal = QPalette()
     for role, color in [
