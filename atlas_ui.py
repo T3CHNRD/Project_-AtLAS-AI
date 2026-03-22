@@ -1,60 +1,75 @@
 """
-atlas_ui.py — Cyber-Librarian floating panel for Atlas AI
-==========================================================
-Frameless macOS panel with Matrix-green accents.
+atlas_ui.py — The Modern Archive  |  Atlas AI
+==============================================
+Charcoal black, muted amethyst, burnished leather.
+A floating panel for the Court Clerk and his Cyber-Hound.
 
 Requires:
     pip install PyQt6 requests pymupdf python-docx
+
+Come Atlas  (add to ~/.zshrc):
+    alias comeatlas="python3 /path/to/atlas_ui.py"
+    # Then type:  comeatlas
+    # Or for a packaged .app:
+    # alias comeatlas="open -a Atlas"
 """
 
 import sys
 from pathlib import Path
 
 import requests
-from PyQt6.QtCore import Qt, QPoint, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QPalette, QFont, QDragEnterEvent, QDropEvent, QTextCursor
+from PyQt6.QtCore import Qt, QPoint, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import (
+    QColor, QPalette, QFont, QTextCharFormat,
+    QDragEnterEvent, QDropEvent, QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QTextEdit, QPushButton, QLineEdit, QSizePolicy,
     QGraphicsDropShadowEffect,
 )
 
-# ── Design tokens ────────────────────────────────────────────────────────────
-BG_BASE      = "#1A1A1B"
-BG_SURFACE   = "#222224"
-BG_ELEVATED  = "#2A2A2D"
-ACCENT       = "#00FF41"
-ACCENT_DIM   = "#00882A"
-TEXT_PRIMARY = "#E8E8E8"
-TEXT_MUTED   = "#5A5A5F"
-DANGER       = "#FF453A"
+# ── Design tokens ─────────────────────────────────────────────────────────────
+BG_BASE      = "#121212"   # Charcoal Black
+BG_SURFACE   = "#1C1C1C"
+BG_ELEVATED  = "#2C3E50"   # Deep Navy / Grey-Blue
+ACCENT       = "#6C5B7B"   # Muted Amethyst Purple
+ACCENT_DIM   = "#4A3F57"   # dimmed purple
+LEATHER      = "#5D4037"   # Burnished Leather Brown
+LEATHER_DIM  = "#3E2723"
+TEXT_PRIMARY = "#F4ECD8"   # Antique Paper White
+TEXT_MUTED   = "#8A7A6A"
+DANGER       = "#C0392B"
 FONT_MONO    = "Menlo, Courier New, monospace"
 
-WINDOW_W, WINDOW_H = 460, 580
-CORNER_R           = 16
+WINDOW_W, WINDOW_H = 460, 600
+CORNER_R           = 18
+PORT_SIZE          = 158   # diameter of the circular Archive Port
 
 OLLAMA_URL   = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2"
 
 CLERK_SYSTEM_PROMPT = (
-    "You are Atlas, a meticulous Court Clerk. "
-    "Summarize this in 2 witty sentences. "
-    "Command your robot dog Spot to file it in a specific folder within "
-    "/Active_2025_2026/ based on content. End with [Arf!]."
+    "You are Atlas, a sharp, sophisticated Court Clerk. "
+    "Summarize this file in 2 sentences. "
+    "Instruct your Cyber-Hound to archive it in the correct folder within "
+    "/Active_2025_2026/ based on content. "
+    "Use a tone of high-end professional wit. End with [Click-Whir]."
 )
 COFFEE_BREAK_MSG = (
-    "Spot and I are on a coffee break. "
-    "Check that Ollama is running at http://localhost:11434."
+    "The Hound and I are momentarily indisposed. "
+    "Ensure Ollama is running at http://localhost:11434."
 )
 
-DOG_IDLE    = "\U0001f415"
-DOG_HOVER   = "\U0001f415\u2b06"
-DOG_RUNNING = "\U0001f415\U0001f4a8"
-DOG_DONE    = "\U0001f415\u2705"
-DOG_ERROR   = "\U0001f9ba"
+# Minimal mechanical glyphs — the Cyber-Hound
+HOUND_IDLE    = "\u2699"        # ⚙
+HOUND_HOVER   = "\u2699\u2191"  # ⚙↑
+HOUND_RUNNING = "\u2699\u2026"  # ⚙…
+HOUND_DONE    = "\u2699\u2713"  # ⚙✓
+HOUND_ERROR   = "\u26a0"        # ⚠
 
 
-# ── Text extraction ──────────────────────────────────────────────────────────
+# ── Text extraction ────────────────────────────────────────────────────────────
 def extract_text(path: str) -> str:
     ext = Path(path).suffix.lower()
     try:
@@ -71,7 +86,7 @@ def extract_text(path: str) -> str:
     return ""
 
 
-# ── ClerkWorker ──────────────────────────────────────────────────────────────
+# ── ClerkWorker ────────────────────────────────────────────────────────────────
 class ClerkWorker(QThread):
     """Off-thread: extract text -> query Ollama.
 
@@ -92,17 +107,17 @@ class ClerkWorker(QThread):
 
     def run(self):
         name = Path(self._file_path).name
-        self.status_update.emit(f"Extracting text from {name}...")
+        self.status_update.emit(f"Reviewing {name}...")
 
         raw = extract_text(self._file_path)
         if not raw.strip() or raw.startswith("[extraction error"):
             self.error.emit(
-                f"Objection -- could not read '{name}'. "
-                "Supported: PDF, DOCX, TXT, MD, CSV, JSON, YAML. [Arf!]"
+                f"Objection — could not read '{name}'. "
+                "Accepted: PDF, DOCX, TXT, MD, CSV, JSON, YAML. [Click-Whir]"
             )
             return
 
-        self.status_update.emit("Clerk Atlas is reviewing the document...")
+        self.status_update.emit("The Clerk is deliberating...")
         prompt = f"{CLERK_SYSTEM_PROMPT}\n\nDocument:\n{raw[:2000]}"
 
         try:
@@ -119,7 +134,7 @@ class ClerkWorker(QThread):
             self.error.emit(str(exc))
 
 
-# ── ChatWorker ───────────────────────────────────────────────────────────────
+# ── ChatWorker ─────────────────────────────────────────────────────────────────
 class ChatWorker(QThread):
     result_ready = pyqtSignal(str)
     error        = pyqtSignal(str)
@@ -143,41 +158,175 @@ class ChatWorker(QThread):
             self.error.emit(str(exc))
 
 
-# ── RobotDog ─────────────────────────────────────────────────────────────────
-class RobotDog(QLabel):
+# ── CyberHound ─────────────────────────────────────────────────────────────────
+class CyberHound(QLabel):
+    """Minimalist mechanical glyph indicator."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._base_px = 56
+        self._base_px = 40
         font = QFont()
         font.setPixelSize(self._base_px)
         self.setFont(font)
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(
+            f"color:{TEXT_MUTED}; background:transparent; letter-spacing:4px;"
+        )
         self.set_idle()
 
-    def _set(self, glyph: str, scale: float = 1.0):
+    def _set(self, glyph: str, color: str = TEXT_MUTED, scale: float = 1.0):
         self.setText(glyph)
         font = self.font()
         font.setPixelSize(int(self._base_px * scale))
         self.setFont(font)
+        self.setStyleSheet(
+            f"color:{color}; background:transparent; letter-spacing:4px;"
+        )
 
-    def set_idle(self):    self._set(DOG_IDLE,    1.00)
-    def set_hover(self):   self._set(DOG_HOVER,   1.20)
-    def set_running(self): self._set(DOG_RUNNING, 1.00)
-    def set_done(self):    self._set(DOG_DONE,    1.00)
-    def set_error(self):   self._set(DOG_ERROR,   1.00)
+    def set_idle(self):    self._set(HOUND_IDLE,    TEXT_MUTED,   1.00)
+    def set_hover(self):   self._set(HOUND_HOVER,   ACCENT,       1.20)
+    def set_running(self): self._set(HOUND_RUNNING, LEATHER,      1.00)
+    def set_done(self):    self._set(HOUND_DONE,    TEXT_PRIMARY, 1.00)
+    def set_error(self):   self._set(HOUND_ERROR,   DANGER,       1.00)
 
 
-# ── TerminalChat ─────────────────────────────────────────────────────────────
-class TerminalChat(QTextEdit):
+# ── ArchivePort (circular drag-drop zone) ──────────────────────────────────────
+class ArchivePort(QWidget):
+    """Circular drop zone — the Hound sits at its centre."""
+
+    _PULSE = [LEATHER, "#7D5547", LEATHER, LEATHER_DIM]
+
+    def __init__(self, chat: "ArchiveChat", parent=None):
+        super().__init__(parent)
+        self._chat    = chat
+        self._workers: list = []
+        self._pulse_idx   = 0
+        self._pulse_timer = QTimer(self)
+        self._pulse_timer.timeout.connect(self._pulse_tick)
+
+        self.setAcceptDrops(True)
+        self.setFixedSize(PORT_SIZE, PORT_SIZE)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        self._hound = CyberHound()
+        self._label = QLabel("archive port")
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._label.setStyleSheet(
+            f"color:{TEXT_MUTED}; font-family:{FONT_MONO}; font-size:9px;"
+            " background:transparent; letter-spacing:3px;"
+        )
+
+        layout.addStretch()
+        layout.addWidget(self._hound)
+        layout.addWidget(self._label)
+        layout.addStretch()
+
+        self._set_ss(ACCENT_DIM)
+
+    def _set_ss(self, border_color: str, border_width: int = 1):
+        self.setStyleSheet(
+            f"ArchivePort{{"
+            f"background:{BG_ELEVATED};"
+            f"border:{border_width}px solid {border_color};"
+            f"border-radius:{PORT_SIZE // 2}px;}}"
+        )
+
+    def _start_pulse(self):
+        self._pulse_idx = 0
+        self._pulse_timer.start(280)
+
+    def _stop_pulse(self):
+        self._pulse_timer.stop()
+        self._set_ss(ACCENT_DIM)
+
+    def _pulse_tick(self):
+        c = self._PULSE[self._pulse_idx % len(self._PULSE)]
+        w = 2 if self._pulse_idx % 2 == 0 else 1
+        self._set_ss(c, w)
+        self._pulse_idx += 1
+
+    # ── Drag events ────────────────────────────────────────────────────────
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self._set_ss(ACCENT, 2)
+            self._hound.set_hover()
+            self._label.setText("present to the Hound")
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self._reset()
+
+    def dropEvent(self, event: QDropEvent):
+        urls = event.mimeData().urls()
+        if not urls:
+            self._reset()
+            return
+        for url in urls:
+            path = url.toLocalFile()
+            if path:
+                self._dispatch(path)
+        event.acceptProposedAction()
+
+    def _reset(self):
+        self._stop_pulse()
+        self._hound.set_idle()
+        self._label.setText("archive port")
+
+    def _dispatch(self, path: str):
+        self._hound.set_running()
+        self._label.setText("processing...")
+        self._chat.append_thinking()
+        self._start_pulse()
+
+        worker = ClerkWorker(path)
+        worker.status_update.connect(self._chat.print_system)
+        worker.result_ready.connect(self._on_result)
+        worker.error.connect(self._on_error)
+        worker.finished.connect(
+            lambda: self._workers.remove(worker) if worker in self._workers else None
+        )
+        self._workers.append(worker)
+        worker.start()
+
+    def _on_result(self, text: str):
+        self._stop_pulse()
+        self._chat.typewrite_replace(text)
+        self._hound.set_done()
+        self._label.setText("archived \u2014 present another?")
+
+    def _on_error(self, msg: str):
+        self._stop_pulse()
+        self._chat.typewrite_replace(f"[!] {msg}")
+        self._hound.set_error()
+        self._label.setText("error \u2014 retry")
+
+    @property
+    def hound(self) -> CyberHound:
+        return self._hound
+
+
+# ── ArchiveChat ────────────────────────────────────────────────────────────────
+class ArchiveChat(QTextEdit):
+    """Rich-text terminal pane with typewriter effect for Atlas responses."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._thinking_anchor = -1
+        self._tw_chars: list  = []
+        self._tw_pos          = 0
+        self._tw_timer        = QTimer(self)
+        self._tw_timer.timeout.connect(self._tw_tick)
+
         self.setReadOnly(True)
         self.setStyleSheet(
             f"QTextEdit {{"
-            f"background-color: rgba(26,26,27,210);"
-            f"color: {ACCENT};"
+            f"background-color: rgba(18,18,18,230);"
+            f"color: {TEXT_PRIMARY};"
             f"border: 1px solid {ACCENT_DIM};"
             f"border-radius: 8px;"
             f"padding: 10px 12px;"
@@ -187,7 +336,7 @@ class TerminalChat(QTextEdit):
             f"QScrollBar:vertical {{"
             f"background: transparent; width: 4px; border-radius: 2px;}}"
             f"QScrollBar::handle:vertical {{"
-            f"background: {ACCENT_DIM}; border-radius: 2px; min-height: 20px;}}"
+            f"background: {LEATHER_DIM}; border-radius: 2px; min-height: 20px;}}"
             f"QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{height: 0;}}"
         )
         font = QFont()
@@ -217,45 +366,68 @@ class TerminalChat(QTextEdit):
         self._thinking_anchor = cursor.position()
         html = (
             f'<span style="color:{ACCENT};font-weight:700;">[Atlas]</span>'
-            f'<span style="color:{TEXT_MUTED};font-style:italic;"> thinking...</span>'
+            f'<span style="color:{TEXT_MUTED};font-style:italic;"> deliberating...</span>'
         )
         self.append(html)
         self._bottom()
 
-    def replace_thinking(self, text: str):
-        if self._thinking_anchor == -1:
-            self.print_line("[Atlas]", text)
-            return
-        cursor = QTextCursor(self.document())
-        cursor.setPosition(self._thinking_anchor)
-        cursor.movePosition(
-            QTextCursor.MoveOperation.End,
-            QTextCursor.MoveMode.KeepAnchor,
-        )
-        cursor.removeSelectedText()
-        self._thinking_anchor = -1
-        html = (
-            f'<span style="color:{ACCENT};font-weight:700;">[Atlas]</span>'
-            f'<span style="color:{TEXT_PRIMARY};"> {text}</span>'
-        )
+    def typewrite_replace(self, text: str, interval_ms: int = 16):
+        """Replace the 'deliberating...' placeholder with a typewriter effect."""
+        self._tw_timer.stop()
+        if self._thinking_anchor != -1:
+            cursor = QTextCursor(self.document())
+            cursor.setPosition(self._thinking_anchor)
+            cursor.movePosition(
+                QTextCursor.MoveOperation.End,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+            cursor.removeSelectedText()
+            self._thinking_anchor = -1
+
+        # Insert the coloured [Atlas] prefix immediately
         cursor = QTextCursor(self.document())
         cursor.movePosition(QTextCursor.MoveOperation.End)
-        cursor.insertHtml(html)
+        cursor.insertHtml(
+            f'<span style="color:{ACCENT};font-weight:700;">[Atlas] </span>'
+        )
+
+        # Queue the body for character-by-character typewriter output
+        self._tw_chars = list(text)
+        self._tw_pos   = 0
+        self._tw_timer.start(interval_ms)
+
+    def _tw_tick(self):
+        if self._tw_pos >= len(self._tw_chars):
+            self._tw_timer.stop()
+            self._bottom()
+            return
+        batch = self._tw_chars[self._tw_pos : self._tw_pos + 3]
+        cursor = QTextCursor(self.document())
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor(TEXT_PRIMARY))
+        cursor.setCharFormat(fmt)
+        cursor.insertText("".join(batch))
+        self._tw_pos += 3
         self._bottom()
 
+    def replace_thinking(self, text: str):
+        """Alias used by ChatWorker — delegates to typewrite_replace."""
+        self.typewrite_replace(text)
 
-# ── ChatInput ────────────────────────────────────────────────────────────────
-class ChatInput(QLineEdit):
+
+# ── ArchiveInput ───────────────────────────────────────────────────────────────
+class ArchiveInput(QLineEdit):
     message_sent = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setPlaceholderText("> query the archive...")
+        self.setPlaceholderText("> address the Clerk...")
         self.returnPressed.connect(self._send)
         self.setStyleSheet(
             f"QLineEdit {{"
             f"background-color: {BG_ELEVATED};"
-            f"color: {ACCENT};"
+            f"color: {TEXT_PRIMARY};"
             f"border: 1px solid {ACCENT_DIM};"
             f"border-radius: 6px;"
             f"padding: 8px 12px;"
@@ -275,127 +447,31 @@ class ChatInput(QLineEdit):
             self.clear()
 
 
-# ── DragDropArea ─────────────────────────────────────────────────────────────
-class DragDropArea(QWidget):
-    def __init__(self, chat: "TerminalChat", parent=None):
-        super().__init__(parent)
-        self._chat    = chat
-        self._workers: list = []
-        self.setAcceptDrops(True)
-        self.setMinimumHeight(150)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
-
-        self._dog   = RobotDog()
-        self._label = QLabel("drag a file to brief Spot")
-        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._label.setStyleSheet(
-            f"color:{TEXT_MUTED}; font-family:{FONT_MONO}; font-size:11px;"
-            " background:transparent;"
-        )
-
-        layout.addStretch()
-        layout.addWidget(self._dog)
-        layout.addWidget(self._label)
-        layout.addStretch()
-
-        self._idle_ss  = (
-            f"DragDropArea{{background:{BG_ELEVATED};"
-            f"border:1px dashed {ACCENT_DIM};border-radius:12px;}}"
-        )
-        self._hover_ss = (
-            f"DragDropArea{{background:{BG_ELEVATED};"
-            f"border:1px dashed {ACCENT};border-radius:12px;}}"
-        )
-        self.setStyleSheet(self._idle_ss)
-
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-            self.setStyleSheet(self._hover_ss)
-            self._dog.set_hover()
-            self._label.setText("drop it -- Spot is ready!")
-        else:
-            event.ignore()
-
-    def dragLeaveEvent(self, event):
-        self._reset()
-
-    def dropEvent(self, event: QDropEvent):
-        self.setStyleSheet(self._idle_ss)
-        urls = event.mimeData().urls()
-        if not urls:
-            self._reset()
-            return
-        for url in urls:
-            path = url.toLocalFile()
-            if path:
-                self._dispatch(path)
-        event.acceptProposedAction()
-
-    def _reset(self):
-        self.setStyleSheet(self._idle_ss)
-        self._dog.set_idle()
-        self._label.setText("drag a file to brief Spot")
-
-    def _dispatch(self, path: str):
-        self._dog.set_running()
-        self._label.setText("Spot is on the case...")
-        self._chat.append_thinking()
-
-        worker = ClerkWorker(path)
-        worker.status_update.connect(self._chat.print_system)
-        worker.result_ready.connect(self._on_result)
-        worker.error.connect(self._on_error)
-        worker.finished.connect(
-            lambda: self._workers.remove(worker) if worker in self._workers else None
-        )
-        self._workers.append(worker)
-        worker.start()
-
-    def _on_result(self, text: str):
-        self._chat.replace_thinking(text)
-        self._dog.set_done()
-        self._label.setText("filed. drop another?")
-
-    def _on_error(self, msg: str):
-        self._chat.replace_thinking(f"[!] {msg}")
-        self._dog.set_error()
-        self._label.setText("error -- try again")
-
-    @property
-    def dog(self) -> RobotDog:
-        return self._dog
-
-
-# ── TopBar ───────────────────────────────────────────────────────────────────
+# ── TopBar ─────────────────────────────────────────────────────────────────────
 class TopBar(QWidget):
     def __init__(self, on_close, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(38)
+        self.setFixedHeight(40)
         self.setStyleSheet("background:transparent;")
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(14, 0, 10, 0)
+        row.setContentsMargins(16, 0, 12, 0)
         row.setSpacing(0)
 
-        title = QLabel("Atlas  //  Archives")
+        title = QLabel("A T L A S  \u2014  T H E  A R C H I V E")
         title.setStyleSheet(
-            f"color:{ACCENT}; font-family:{FONT_MONO}; font-size:11px;"
-            " font-weight:700; letter-spacing:2px; background:transparent;"
+            f"color:{TEXT_MUTED}; font-family:{FONT_MONO}; font-size:9px;"
+            " font-weight:400; letter-spacing:3px; background:transparent;"
         )
 
-        close_btn = QPushButton("x")
+        close_btn = QPushButton("\u00d7")   # ×
         close_btn.setFixedSize(22, 22)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(on_close)
         close_btn.setStyleSheet(
             f"QPushButton {{color:{TEXT_MUTED}; background:transparent;"
             f"border:1px solid {TEXT_MUTED}; border-radius:11px;"
-            f"font-size:9px; font-weight:700;}}"
+            f"font-size:11px; font-weight:700;}}"
             f"QPushButton:hover {{ color:{DANGER}; border-color:{DANGER}; }}"
         )
 
@@ -404,7 +480,7 @@ class TopBar(QWidget):
         row.addWidget(close_btn)
 
 
-# ── RoundedWindow ────────────────────────────────────────────────────────────
+# ── RoundedWindow ──────────────────────────────────────────────────────────────
 class RoundedWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -417,13 +493,13 @@ class RoundedWindow(QWidget):
         self.resize(WINDOW_W, WINDOW_H)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 4)
-        shadow.setColor(QColor(0, 0, 0, 160))
+        shadow.setBlurRadius(40)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(0, 0, 0, 180))
         self.setGraphicsEffect(shadow)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setContentsMargins(14, 14, 14, 14)
 
         self._inner = QWidget()
         self._inner.setObjectName("inner")
@@ -466,12 +542,25 @@ class RoundedWindow(QWidget):
             super().keyPressEvent(event)
 
 
-# ── AtlasWindow ──────────────────────────────────────────────────────────────
+# ── AtlasWindow ────────────────────────────────────────────────────────────────
 class AtlasWindow(RoundedWindow):
     def __init__(self):
         super().__init__()
         self._workers: list = []
         self._build_ui()
+
+    # ── "Come Atlas" summoning ─────────────────────────────────────────────
+    def show_atlas(self):
+        """Bring the panel to the foreground from any context.
+
+        Add to ~/.zshrc:
+            alias comeatlas="python3 /path/to/atlas_ui.py"
+        Then simply type:
+            comeatlas
+        """
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
 
     def _build_ui(self):
         root = QVBoxLayout(self._inner)
@@ -482,30 +571,36 @@ class AtlasWindow(RoundedWindow):
 
         sep = QWidget()
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background:{ACCENT_DIM};")
+        sep.setStyleSheet(f"background:{LEATHER_DIM};")
         root.addWidget(sep)
 
         content = QWidget()
         content.setStyleSheet("background:transparent;")
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(14, 12, 14, 14)
-        cl.setSpacing(10)
+        cl.setContentsMargins(16, 14, 16, 16)
+        cl.setSpacing(12)
         root.addWidget(content)
 
-        # Build chat widget first so DragDropArea can reference it
-        self._chat = TerminalChat()
+        # Build ArchiveChat first so ArchivePort can reference it
+        self._chat = ArchiveChat()
         self._chat.print_line(
             "[Atlas]",
-            "Court is in session. Hand Spot a file and I will have it "
-            "catalogued before you can say motion granted. [Arf!]",
+            "The archive is open. Present a document to the Hound "
+            "and I shall have it properly catalogued. [Click-Whir]",
         )
 
-        self._drop_area = DragDropArea(self._chat)
-        cl.addWidget(self._drop_area, stretch=3)
+        # Centre the circular Archive Port
+        port_row = QHBoxLayout()
+        port_row.setContentsMargins(0, 0, 0, 0)
+        self._port = ArchivePort(self._chat)
+        port_row.addStretch()
+        port_row.addWidget(self._port)
+        port_row.addStretch()
+        cl.addLayout(port_row)
 
-        cl.addWidget(self._chat, stretch=2)
+        cl.addWidget(self._chat, stretch=1)
 
-        self._input = ChatInput()
+        self._input = ArchiveInput()
         self._input.message_sent.connect(self._on_message_sent)
         cl.addWidget(self._input)
 
@@ -513,9 +608,9 @@ class AtlasWindow(RoundedWindow):
         self._chat.print_line("[You]", text, prefix_color=TEXT_MUTED)
         self._chat.append_thinking()
         worker = ChatWorker(text)
-        worker.result_ready.connect(self._chat.replace_thinking)
+        worker.result_ready.connect(self._chat.typewrite_replace)
         worker.error.connect(
-            lambda e: self._chat.replace_thinking(f"[!] {e}")
+            lambda e: self._chat.typewrite_replace(f"[!] {e}")
         )
         worker.finished.connect(
             lambda: self._workers.remove(worker) if worker in self._workers else None
@@ -524,7 +619,7 @@ class AtlasWindow(RoundedWindow):
         worker.start()
 
 
-# ── Entry point ──────────────────────────────────────────────────────────────
+# ── Entry point ────────────────────────────────────────────────────────────────
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Atlas")
@@ -535,10 +630,10 @@ def main():
     p.setColor(QPalette.ColorRole.WindowText,      QColor(TEXT_PRIMARY))
     p.setColor(QPalette.ColorRole.Base,            QColor(BG_SURFACE))
     p.setColor(QPalette.ColorRole.AlternateBase,   QColor(BG_ELEVATED))
-    p.setColor(QPalette.ColorRole.Text,            QColor(ACCENT))
+    p.setColor(QPalette.ColorRole.Text,            QColor(TEXT_PRIMARY))
     p.setColor(QPalette.ColorRole.Button,          QColor(BG_ELEVATED))
-    p.setColor(QPalette.ColorRole.ButtonText,      QColor(ACCENT))
-    p.setColor(QPalette.ColorRole.Highlight,       QColor(ACCENT_DIM))
+    p.setColor(QPalette.ColorRole.ButtonText,      QColor(TEXT_PRIMARY))
+    p.setColor(QPalette.ColorRole.Highlight,       QColor(ACCENT))
     p.setColor(QPalette.ColorRole.HighlightedText, QColor(BG_BASE))
     app.setPalette(p)
 
