@@ -1,16 +1,17 @@
 services:
 
-  # ─── The Brain ──────────────────────────────────────────────────────────────
+  # ─── The Brain (Ollama) ────────────────────────────────────────────────────
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     container_name: atlas_brain
-    volumes:
-      - ollama_data:/root/.ollama
     ports:
       - "11434:11434"
-    restart: unless-stopped
+    volumes:
+      - ./ollama_data:/root/.ollama
+    restart: always
+    # M1 Tip: Ollama handles Metal acceleration natively in Docker Desktop 4.19+
 
-  # ─── The Back Office (Settings Panel) ──────────────────────────────────────
+  # ─── The Back Office (Django Settings) ────────────────────────────────────
   settings-panel:
     image: python:3.11-slim
     container_name: atlas_settings
@@ -19,15 +20,16 @@ services:
     volumes:
       - ./django-smallstack:/app
     working_dir: /app
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=sqlite:///db.sqlite3
     command: >
       sh -c "pip install -r requirements.txt &&
              python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
-    restart: unless-stopped
-    depends_on:
-      - ollama
 
-  # ─── The Bridge (MCP / Model Context Protocol) ──────────────────────────────
+  # ─── The Bridge (MCP Server) ───────────────────────────────────────────────
+  # Standardises how OpenClaw speaks to the Python UI
   mcp-server:
     image: node:20-slim
     container_name: atlas_bridge
@@ -36,11 +38,8 @@ services:
     volumes:
       - ./mcp-config:/app/config
     command: npx @modelcontextprotocol/server-ollama --host ollama --port 11434
-    restart: unless-stopped
-    depends_on:
-      - ollama
 
-  # ─── The Hands (Autonomous Agent) ──────────────────────────────────────────
+  # ─── The Hands (OpenClaw Agent) ────────────────────────────────────────────
   openclaw:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: atlas_agent
@@ -52,7 +51,6 @@ services:
       - MCP_SERVER_URL=http://mcp-server:3000
     volumes:
       - ~/Library/Mobile\ Documents/com~apple~CloudDocs/Active_2025_2026:/data/archives
-    restart: unless-stopped
 
 volumes:
   ollama_data:
