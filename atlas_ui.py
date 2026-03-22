@@ -1,10 +1,15 @@
 import sys
+from pathlib import Path
+
+import requests
+from PyQt6.QtCore import Qt, QPoint, QThread, pyqtSignal
+from PyQt6.QtGui import (
+    QColor, QPalette, QFont, QDragEnterEvent, QDropEvent, QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QLabel, QTextEdit, QLineEdit,
 )
-from PyQt6.QtCore import Qt, QPoint
-from PyQt6.QtGui import QColor, QPalette, QFont, QDragEnterEvent, QDropEvent
 
 # ─── Colour Palette ───────────────────────────────────────────────────────────
 BG_PRIMARY    = "#121212"
@@ -21,13 +26,72 @@ WELCOME_MSG = (
     "Hand me a file, or ask me a question."
 )
 
+OLLAMA_URL  = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2"
+
+
+# ─── Text Extraction ──────────────────────────────────────────────────────────
+
+def extract_text(path: str) -> str:
+    """Return plain text from PDF, DOCX, or plain-text files."""
+    ext = Path(path).suffix.lower()
+    try:
+        if ext == ".pdf":
+            import fitz  # PyMuPDF
+            doc = fitz.open(path)
+            return "\n".join(page.get_text() for page in doc)
+        elif ext in (".docx", ".doc"):
+            import docx
+            document = docx.Document(path)
+            return "\n".join(p.text for p in document.paragraphs)
+        elif ext in (".txt", ".md", ".csv", ".json", ".yaml", ".yml", ".log"):
+            return Path(path).read_text(encoding="utf-8", errors="replace")
+    except Exception as exc:  # noqa: BLE001
+        return f"[extraction error: {exc}]"
+    return ""
+
+
+# ─── Ollama Worker ────────────────────────────────────────────────────────────
+
+class OllamaWorker(QThread):
+    """Sends a prompt to Ollama on a background thread and emits the response."""
+
+    response_ready = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, prompt: str, parent=None):
+        super().__init__(parent)
+        self._prompt = prompt
+
+    def run(self):
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": self._prompt,
+                    "stream": False,
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            text = resp.json().get("response", "").strip()
+            self.response_ready.emit(text)
+        except requests.exceptions.ConnectionError:
+            self.error_occurred.emit(
+                "Could not reach Ollama. Is it running at http://localhost:11434?"
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.error_occurred.emit(str(exc))
+
 
 class DropZone(QLabel):
     """A drag-and-drop target that accepts files and reports their paths."""
 
-    def __init__(self, chat_history: "ChatHistory", parent=None):
+    file_dropped = pyqtSignal(str)  # emits local file path
+
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self._chat = chat_history
 
         self.setText("Drop files here")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -70,7 +134,7 @@ class DropZone(QLabel):
         for url in urls:
             path = url.toLocalFile()
             if path:
-                self._chat.append_message("You", f"[File dropped] {path}")
+                self.file_dropped.emit(path)
         event.acceptProposedAction()
 
     def _reset_border(self):
@@ -85,6 +149,7 @@ class ChatHistory(QTextEdit):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._thinking_anchor: int = -1  # doc position before last 'Thinking…' block
         self.setReadOnly(True)
         self.setStyleSheet(f"""
             QTextEdit {{
@@ -117,10 +182,7 @@ class ChatHistory(QTextEdit):
 
     def append_message(self, sender: str, text: str):
         """Append a formatted message and scroll to the bottom."""
-        if sender == "Atlas":
-            colour = ACCENT
-        else:
-            colour = TEXT_MUTED
+        colour = ACCENT if sender == "Atlas" else TEXT_MUTED
         html = (
             f'<span style="color:{colour}; font-weight:600;">{sender}:</span> '
             f'<span style="color:{TEXT_PRIMARY};">{text}</span>'
@@ -128,13 +190,48 @@ class ChatHistory(QTextEdit):
         self.append(html)
         self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
 
+    def append_thinking(self):
+        """Insert an italic 'Thinking…' placeholder; saves position for replacement."""
+        cursor = QTextCursor(self.document())
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._thinking_anchor = cursor.position()
+        html = (
+            f'<span style="color:{ACCENT}; font-weight:600;">Atlas:</span> '
+            f'<span style="color:{TEXT_MUTED}; font-style:italic;">Thinking…</span>'
+        )
+        self.append(html)
+        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
+
+    def replace_thinking(self, text: str):
+        """Replace the 'Thinking…' block with the real response."""
+        if self._thinking_anchor == -1:
+            self.append_message("Atlas", text)
+            return
+        cursor = QTextCursor(self.document())
+        cursor.setPosition(self._thinking_anchor)
+        cursor.movePosition(
+            QTextCursor.MoveOperation.End,
+            QTextCursor.MoveMode.KeepAnchor,
+        )
+        cursor.removeSelectedText()
+        self._thinking_anchor = -1
+        html = (
+            f'<span style="color:{ACCENT}; font-weight:600;">Atlas:</span> '
+            f'<span style="color:{TEXT_PRIMARY};">{text}</span>'
+        )
+        cursor = QTextCursor(self.document())
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(html)
+        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
+
 
 class ChatInput(QLineEdit):
     """Single-line input field; Enter key sends the message."""
 
-    def __init__(self, chat_history: ChatHistory, parent=None):
+    message_sent = pyqtSignal(str)  # emits the user's text
+
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self._chat = chat_history
         self.setPlaceholderText("Ask Atlas something…")
         self.returnPressed.connect(self._send)
         self.setStyleSheet(f"""
@@ -160,7 +257,7 @@ class ChatInput(QLineEdit):
         text = self.text().strip()
         if not text:
             return
-        self._chat.append_message("You", text)
+        self.message_sent.emit(text)
         self.clear()
 
 
@@ -203,6 +300,7 @@ class AtlasWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self._workers: list[OllamaWorker] = []  # keep refs alive until threads finish
         self._build_window()
         self._build_ui()
 
@@ -248,20 +346,65 @@ class AtlasWindow(QMainWindow):
         content_layout.setSpacing(12)
         root_layout.addWidget(content)
 
-        # Chat history (middle section — created first so DropZone can reference it)
+        # Chat history
         self._chat_history = ChatHistory()
         self._chat_history.append_message("Atlas", WELCOME_MSG.replace("Atlas: ", ""))
 
         # Drop zone (top section)
-        self._drop_zone = DropZone(self._chat_history)
+        self._drop_zone = DropZone()
+        self._drop_zone.file_dropped.connect(self._on_file_dropped)
         content_layout.addWidget(self._drop_zone)
 
-        # Chat history
+        # Chat history (middle section)
         content_layout.addWidget(self._chat_history, stretch=1)
 
         # Chat input (bottom section)
-        self._chat_input = ChatInput(self._chat_history)
+        self._chat_input = ChatInput()
+        self._chat_input.message_sent.connect(self._on_message_sent)
         content_layout.addWidget(self._chat_input)
+
+    # ── Ollama signal handlers ─────────────────────────────────────────────────
+    def _on_file_dropped(self, path: str):
+        name = Path(path).name
+        self._chat_history.append_message("You", f"[File dropped] {name}")
+
+        text = extract_text(path)
+        if not text.strip() or text.startswith("[extraction error"):
+            self._chat_history.append_message(
+                "Atlas",
+                f"I couldn\'t extract text from \u2018{name}\u2019. "
+                "Supported formats: PDF, DOCX, TXT, MD, CSV, JSON, YAML.",
+            )
+            return
+
+        snippet = text[:4000]  # keep within model context
+        prompt = (
+            "You are a meticulous archivist called Atlas. "
+            "Summarize the following document in exactly 3 concise sentences, "
+            "focusing on its key subject, purpose, and any notable details.\n\n"
+            f"Document:\n{snippet}"
+        )
+        self._chat_history.append_thinking()
+        self._dispatch_worker(prompt)
+
+    def _on_message_sent(self, text: str):
+        self._chat_history.append_message("You", text)
+        self._chat_history.append_thinking()
+        self._dispatch_worker(text)
+
+    def _dispatch_worker(self, prompt: str):
+        worker = OllamaWorker(prompt)
+        worker.response_ready.connect(self._on_worker_response)
+        worker.error_occurred.connect(self._on_worker_error)
+        worker.finished.connect(lambda: self._workers.remove(worker) if worker in self._workers else None)
+        self._workers.append(worker)
+        worker.start()
+
+    def _on_worker_response(self, text: str):
+        self._chat_history.replace_thinking(text)
+
+    def _on_worker_error(self, error: str):
+        self._chat_history.replace_thinking(f"\u26a0\ufe0f {error}")
 
     # ── Keyboard shortcuts ─────────────────────────────────────────────────────
     def keyPressEvent(self, event):
