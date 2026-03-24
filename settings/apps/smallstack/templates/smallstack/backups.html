@@ -1,0 +1,190 @@
+{% extends "smallstack/base.html" %}
+{% load theme_tags %}
+
+{% block title %}Backups{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Table styles are in components.css; only page-specific badges here */
+    .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-success { background: color-mix(in srgb, var(--success-fg) 15%, var(--card-bg)); color: var(--success-fg); }
+    .status-failed { background: color-mix(in srgb, var(--error-fg) 15%, var(--card-bg)); color: var(--error-fg); }
+    .status-pruned { opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="page-header-bleed page-header-with-actions" style="display: flex; align-items: center; justify-content: space-between;">
+    <div class="page-header-content">
+        <h1>Database Backups</h1>
+        <p class="page-subtitle">SQLite backup management</p>
+        <nav style="margin-top: 0.5rem; font-size: 0.8rem;">
+            <a href="{% url 'website:home' %}" style="color: var(--body-quiet-color); text-decoration: none;">Home</a>
+            <span style="color: var(--body-quiet-color); margin: 0 0.3rem;">/</span>
+            <span style="color: var(--body-fg);">Backups</span>
+        </nav>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: stretch;">
+        <!-- Scheduled Backups Status -->
+        {% if backup_cron_enabled %}
+        <div class="card" style="border: 2px solid color-mix(in srgb, var(--success-fg) 40%, transparent); margin: 0; min-width: 160px; transition: border-color 0.15s, background 0.15s;" onmouseover="this.style.borderColor='var(--success-fg)';this.style.background='color-mix(in srgb, var(--success-fg) 6%, var(--card-bg))'" onmouseout="this.style.borderColor='color-mix(in srgb, var(--success-fg) 40%, transparent)';this.style.background='var(--card-bg)'">
+            <div class="card-body" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px;">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--success-fg)">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <div>
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--success-fg);">Scheduled</div>
+                    <div style="color: var(--body-quiet-color); font-size: 0.75rem;">Cron enabled</div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card" style="border: 2px solid color-mix(in srgb, var(--delete-button-bg, red) 40%, transparent); margin: 0; min-width: 160px; transition: border-color 0.15s, background 0.15s;" onmouseover="this.style.borderColor='var(--delete-button-bg, red)';this.style.background='color-mix(in srgb, var(--delete-button-bg, red) 6%, var(--card-bg))'" onmouseout="this.style.borderColor='color-mix(in srgb, var(--delete-button-bg, red) 40%, transparent)';this.style.background='var(--card-bg)'">
+            <div class="card-body" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px;">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--delete-button-bg, red)">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div>
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--delete-button-bg, red);">Not Scheduled</div>
+                    <div style="font-size: 0.75rem;"><a href="{% url 'help:section_detail' 'smallstack' 'database-backups' %}" style="color: var(--body-quiet-color);">Set up cron</a></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Backup Now -->
+        {% if is_sqlite %}
+        <div class="card" id="backup-now-card" style="border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent); margin: 0; min-width: 160px; cursor: pointer; transition: border-color 0.15s, background 0.15s;" onmouseover="this.style.borderColor='var(--primary)';this.style.background='color-mix(in srgb, var(--primary) 8%, var(--card-bg))'" onmouseout="this.style.borderColor='color-mix(in srgb, var(--primary) 30%, transparent)';this.style.background=''" onclick="backupNow()">
+            <div class="card-body" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px;">
+                <svg id="backup-icon" viewBox="0 0 24 24" width="28" height="28" fill="var(--primary)">
+                    <path d="M5 4v2h14V4H5zm0 10h4v6h6v-6h4l-7-7-7 7z"/>
+                </svg>
+                <div>
+                    <div id="backup-label" style="font-weight: 700; font-size: 0.95rem; color: var(--primary);">Backup Now</div>
+                    <div style="color: var(--body-quiet-color); font-size: 0.75rem;">Save to storage</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Download -->
+        {% if is_sqlite and backup_download_enabled %}
+        <div class="card" id="download-card" style="border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent); margin: 0; min-width: 160px; cursor: pointer; transition: border-color 0.15s, background 0.15s;" onmouseover="this.style.borderColor='var(--primary)';this.style.background='color-mix(in srgb, var(--primary) 8%, var(--card-bg))'" onmouseout="this.style.borderColor='color-mix(in srgb, var(--primary) 30%, transparent)';this.style.background=''" onclick="downloadBackup()">
+            <div class="card-body" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px;">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="var(--primary)">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+                <div>
+                    <div id="download-label" style="font-weight: 700; font-size: 0.95rem; color: var(--primary);">Download</div>
+                    <div style="color: var(--body-quiet-color); font-size: 0.75rem;">Save to browser</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div id="backup-page-content">
+    {% include "smallstack/partials/backup_page_content.html" %}
+</div>
+
+{% include "smallstack/includes/stat_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function _getCSRFToken() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    var match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+}
+
+function backupNow() {
+    var card = document.getElementById('backup-now-card');
+    if (card.dataset.busy) return;
+    card.dataset.busy = '1';
+    var label = document.getElementById('backup-label');
+    if (label) label.textContent = 'Creating\u2026';
+
+    fetch("{% url 'smallstack:backup_now' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': _getCSRFToken() },
+        credentials: 'same-origin'
+    })
+    .then(function(response) {
+        if (label) label.textContent = 'Backup Now';
+        delete card.dataset.busy;
+        htmx.ajax('GET', "{% url 'smallstack:backups' %}", {
+            target: '#backup-page-content',
+            swap: 'innerHTML'
+        });
+    })
+    .catch(function(err) {
+        if (label) label.textContent = 'Failed';
+        setTimeout(function() {
+            if (label) label.textContent = 'Backup Now';
+            delete card.dataset.busy;
+        }, 2000);
+    });
+}
+
+function downloadBackup() {
+    var card = document.getElementById('download-card');
+    if (card.dataset.busy) return;
+    card.dataset.busy = '1';
+    var label = document.getElementById('download-label');
+    if (label) label.textContent = 'Creating\u2026';
+
+    fetch("{% url 'smallstack:backup_download' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': _getCSRFToken() },
+        credentials: 'same-origin'
+    })
+    .then(function(response) {
+        if (!response.ok) throw new Error('Download failed');
+        var disposition = response.headers.get('Content-Disposition') || '';
+        var filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+        var filename = filenameMatch ? filenameMatch[1] : 'backup.sqlite3';
+        return response.blob().then(function(blob) {
+            return {blob: blob, filename: filename};
+        });
+    })
+    .then(function(result) {
+        var url = URL.createObjectURL(result.blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (label) label.textContent = 'Download';
+        delete card.dataset.busy;
+        htmx.ajax('GET', "{% url 'smallstack:backups' %}", {
+            target: '#backup-page-content',
+            swap: 'innerHTML'
+        });
+    })
+    .catch(function(err) {
+        if (label) label.textContent = 'Failed';
+        setTimeout(function() {
+            if (label) label.textContent = 'Download';
+            delete card.dataset.busy;
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

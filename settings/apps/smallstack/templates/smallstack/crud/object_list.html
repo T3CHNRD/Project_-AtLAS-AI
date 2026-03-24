@@ -1,0 +1,77 @@
+{% extends "smallstack/base.html" %}
+{% load theme_tags crud_tags %}
+
+{% block title %}{{ object_verbose_name_plural }}{% endblock %}
+
+{% block breadcrumbs %}
+{% if not breadcrumb_parent_label %}
+{% breadcrumb "Home" "website:home" %}
+{% breadcrumb object_verbose_name_plural %}
+{% render_breadcrumbs %}
+{% endif %}
+{% endblock %}
+
+{% comment %}All table, sort indicator, and pagination styles are in components.css{% endcomment %}
+
+{% block content %}
+{% if breadcrumb_parent_label %}
+<div class="page-header-bleed page-header-with-actions" style="display: flex; align-items: flex-start; justify-content: space-between;">
+    <div class="page-header-content">
+        <h1>{{ object_verbose_name_plural }}</h1>
+        <p class="page-subtitle">{{ object_verbose_name }} records</p>
+        <nav style="margin-top: 0.5rem; font-size: 0.8rem;">
+            <a href="{% url 'website:home' %}" style="color: var(--body-quiet-color); text-decoration: none;">Home</a>
+            <span style="color: var(--body-quiet-color); margin: 0 0.3rem;">/</span>
+            <a href="{% url breadcrumb_parent_url_name %}" style="color: var(--body-quiet-color); text-decoration: none;">{{ breadcrumb_parent_label }}</a>
+            <span style="color: var(--body-quiet-color); margin: 0 0.3rem;">/</span>
+            <span style="color: var(--body-fg);">{{ object_verbose_name_plural }}</span>
+        </nav>
+    </div>
+    {% if create_view_url %}
+    <div class="page-header-actions">
+        <a href="{{ create_view_url }}" class="btn" style="background: var(--primary); color: var(--button-fg); padding: 0.5rem 1rem; border: none; border-radius: var(--radius-sm, 4px); text-decoration: none; font-size: 0.9rem;">
+            + Add {{ object_verbose_name }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card" id="crud-content">
+    {% if not breadcrumb_parent_label %}
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>{{ object_verbose_name_plural }}</h2>
+        {% if create_view_url %}
+        <a href="{{ create_view_url }}" class="btn" style="background: var(--primary); color: var(--button-fg); padding: 0.5rem 1rem; border: none; border-radius: var(--radius-sm, 4px); text-decoration: none; font-size: 0.9rem;">
+            + Add {{ object_verbose_name }}
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="card-body">
+        {% if display_template %}
+            {% include "smallstack/crud/includes/display_palette.html" %}
+            <div id="crud-display-area">
+                {% include display_template %}
+            </div>
+        {% elif use_tables2 %}
+            {% load django_tables2 %}
+            {% render_table table %}
+        {% elif object_list %}
+            {% crud_table %}
+        {% else %}
+            <p style="color: var(--body-quiet-color); padding: 2rem 0; text-align: center;">
+                No {{ object_verbose_name_plural }} found.
+                {% if create_view_url %}
+                <a href="{{ create_view_url }}" style="color: var(--primary);">Create one now?</a>
+                {% endif %}
+            </p>
+        {% endif %}
+
+        {% if not use_tables2 and not display_template and is_paginated %}
+        {% render_paginator page_obj "#crud-content" %}
+        {% endif %}
+    </div>
+</div>
+{% include "smallstack/crud/includes/delete_modal.html" %}
+{% endblock %}

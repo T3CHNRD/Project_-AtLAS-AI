@@ -1,0 +1,306 @@
+/**
+ * Palette CSS Overrides - SmallStack
+ *
+ * Each non-default palette overrides color variables for light and dark modes.
+ * The "django" palette is the default defined in theme.css — no overrides needed.
+ *
+ * To add a new palette:
+ *   1. Add html[data-palette="your-id"] block for light mode
+ *   2. Add html[data-palette="your-id"][data-theme="dark"] block for dark mode
+ *
+ * Note: The html prefix is required to beat :root specificity from theme.css.
+ */
+
+/* ============================================
+   High Contrast Palette (Accessibility)
+   ============================================ */
+
+html[data-palette="high-contrast"] {
+    --primary: #111111;
+    --primary-hover: #000000;
+    --secondary: #444444;
+    --header-bg: #111111;
+    --body-fg: #000000;
+    --text-muted: #333333;
+    --sidebar-fg: #000000;
+    --sidebar-active-bg: #111111;
+    --sidebar-active-fg: #ffffff;
+    --sidebar-border: #999999;
+    --sidebar-hover-bg: #e0e0e0;
+    --input-focus-border: #111111;
+    --input-border: #666666;
+    --button-bg: #111111;
+    --button-fg: #ffffff;
+    --button-hover-bg: #000000;
+    --card-border: #666666;
+    --link-color: #000000;
+    --link-fg: #000000;
+    --link-hover: #333333;
+    --breadcrumb-fg: #333333;
+    --breadcrumb-link: #000000;
+    --breadcrumb-separator: #666666;
+    --body-quiet-color: #333333;
+    --footer-fg: #333333;
+}
+
+/* High-contrast light: explicit overrides for nav links and icons */
+html[data-palette="high-contrast"] .nav-link:not(.active),
+html[data-palette="high-contrast"] .nav-link:not(.active):link,
+html[data-palette="high-contrast"] .nav-link:not(.active):visited {
+    color: #000000;
+}
+
+html[data-palette="high-contrast"] .nav-link:not(.active) svg {
+    color: #000000;
+    opacity: 1;
+}
+
+html[data-palette="high-contrast"] .nav-link:not(.active):hover {
+    color: #000000;
+}
+
+html[data-palette="high-contrast"] .button.button-secondary,
+html[data-palette="high-contrast"] a.button.button-secondary {
+    border: 2px solid #111111;
+    color: #000000;
+}
+
+html[data-palette="high-contrast"] .button.button-secondary:hover,
+html[data-palette="high-contrast"] a.button.button-secondary:hover {
+    background: #e0e0e0;
+    border-color: #000000;
+    color: #000000;
+}
+
+html[data-palette="high-contrast"][data-theme="dark"] {
+    --primary: #ffffff;
+    --primary-hover: #e0e0e0;
+    --secondary: #cccccc;
+    --header-bg: #000000;
+    --hero-gradient-end: #111111;
+    --body-fg: #ffffff;
+    --text-muted: #cccccc;
+    --sidebar-fg: #ffffff;
+    --sidebar-active-bg: #ffffff;
+    --sidebar-active-fg: #000000;
+    --sidebar-border: #666666;
+    --input-focus-border: #ffffff;
+    --input-border: #999999;
+    --button-bg: #ffffff;
+    --button-fg: #000000;
+    --button-hover-bg: #e0e0e0;
+    --card-border: #999999;
+    --link-fg: #ffffff;
+    --link-color: #ffffff;
+    --link-hover: #cccccc;
+    --breadcrumb-fg: #cccccc;
+    --breadcrumb-link: #ffffff;
+    --breadcrumb-separator: #999999;
+    --body-quiet-color: #cccccc;
+    --footer-fg: #cccccc;
+}
+
+/* High-contrast dark: explicit overrides for nav links and icons */
+html[data-palette="high-contrast"][data-theme="dark"] .nav-link:not(.active),
+html[data-palette="high-contrast"][data-theme="dark"] .nav-link:not(.active):link,
+html[data-palette="high-contrast"][data-theme="dark"] .nav-link:not(.active):visited {
+    color: #ffffff;
+}
+
+html[data-palette="high-contrast"][data-theme="dark"] .nav-link:not(.active) svg {
+    color: #ffffff;
+    opacity: 1;
+}
+
+html[data-palette="high-contrast"][data-theme="dark"] .nav-link:not(.active):hover {
+    color: #ffffff;
+}
+
+html[data-palette="high-contrast"][data-theme="dark"] .button.button-secondary,
+html[data-palette="high-contrast"][data-theme="dark"] a.button.button-secondary {
+    border: 2px solid #ffffff;
+    color: #ffffff;
+}
+
+html[data-palette="high-contrast"][data-theme="dark"] .button.button-secondary:hover,
+html[data-palette="high-contrast"][data-theme="dark"] a.button.button-secondary:hover {
+    background: #333333;
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+/* ============================================
+   Blue Palette
+   ============================================ */
+
+html[data-palette="dark-blue"] {
+    --primary: #1565c0;
+    --primary-hover: #0d47a1;
+    --secondary: #42a5f5;
+    --header-bg: #1565c0;
+    --sidebar-active-bg: #1565c0;
+    --sidebar-active-fg: #ffffff;
+    --input-focus-border: #1565c0;
+    --button-bg: #1565c0;
+    --button-fg: #ffffff;
+    --button-hover-bg: #0d47a1;
+    --link-color: #1565c0;
+    --link-hover: #0d47a1;
+    --breadcrumb-link: #1565c0;
+}
+
+html[data-palette="dark-blue"][data-theme="dark"] {
+    --primary: #42a5f5;
+    --primary-hover: #64b5f6;
+    --secondary: #1565c0;
+    --header-bg: #0a2a52;
+    --hero-gradient-end: #0d47a1;
+    --sidebar-active-bg: #42a5f5;
+    --sidebar-active-fg: #000000;
+    --input-focus-border: #42a5f5;
+    --button-bg: #42a5f5;
+    --button-fg: #000000;
+    --button-hover-bg: #64b5f6;
+    --link-fg: #ffffff;
+    --link-color: #ffffff;
+    --link-hover: #e0e0e0;
+    --breadcrumb-link: #ffffff;
+}
+
+/* ============================================
+   Orange Palette
+   ============================================ */
+
+html[data-palette="orange"] {
+    --primary: #e65100;
+    --primary-hover: #bf360c;
+    --secondary: #ff9800;
+    --header-bg: #e65100;
+    --sidebar-active-bg: #e65100;
+    --sidebar-active-fg: #ffffff;
+    --input-focus-border: #e65100;
+    --button-bg: #e65100;
+    --button-fg: #ffffff;
+    --button-hover-bg: #bf360c;
+    --link-color: #e65100;
+    --link-hover: #bf360c;
+    --breadcrumb-link: #e65100;
+}
+
+html[data-palette="orange"][data-theme="dark"] {
+    --primary: #ff9800;
+    --primary-hover: #ffb74d;
+    --secondary: #e65100;
+    --header-bg: #4a2800;
+    --hero-gradient-end: #bf360c;
+    --sidebar-active-bg: #ff9800;
+    --sidebar-active-fg: #000000;
+    --input-focus-border: #ff9800;
+    --button-bg: #ff9800;
+    --button-fg: #000000;
+    --button-hover-bg: #ffb74d;
+    --link-fg: #ffffff;
+    --link-color: #ffffff;
+    --link-hover: #e0e0e0;
+    --breadcrumb-link: #ffffff;
+}
+
+/* ============================================
+   Purple Palette
+   ============================================ */
+
+html[data-palette="purple"] {
+    --primary: #7e57c2;
+    --primary-hover: #5e35b1;
+    --secondary: #b39ddb;
+    --header-bg: #7e57c2;
+    --sidebar-active-bg: #7e57c2;
+    --sidebar-active-fg: #ffffff;
+    --input-focus-border: #7e57c2;
+    --button-bg: #7e57c2;
+    --button-fg: #ffffff;
+    --button-hover-bg: #5e35b1;
+    --link-color: #7e57c2;
+    --link-hover: #5e35b1;
+    --breadcrumb-link: #7e57c2;
+}
+
+html[data-palette="purple"][data-theme="dark"] {
+    --primary: #b39ddb;
+    --primary-hover: #ce93d8;
+    --secondary: #7e57c2;
+    --header-bg: #2a1a4a;
+    --hero-gradient-end: #5e35b1;
+    --sidebar-active-bg: #b39ddb;
+    --sidebar-active-fg: #000000;
+    --input-focus-border: #b39ddb;
+    --button-bg: #b39ddb;
+    --button-fg: #000000;
+    --button-hover-bg: #ce93d8;
+    --link-fg: #ffffff;
+    --link-color: #ffffff;
+    --link-hover: #e0e0e0;
+    --breadcrumb-link: #ffffff;
+}
+
+/* ============================================
+   Palette Selector UI (Profile Edit)
+   ============================================ */
+
+.palette-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.palette-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 2px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 72px;
+}
+
+.palette-swatch:hover {
+    border-color: var(--primary);
+    background: var(--body-bg);
+}
+
+.palette-swatch.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--button-fg);
+}
+
+.palette-swatch-colors {
+    display: flex;
+    gap: 4px;
+}
+
+.palette-swatch-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .palette-swatch-dot {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.palette-swatch-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--body-fg);
+}
+
+.palette-swatch.active .palette-swatch-label {
+    color: var(--button-fg);
+}

@@ -1,0 +1,13 @@
+{% load theme_tags django_tables2 %}
+<div id="recent-requests"
+     {% if table.page and table.page.number == 1 %}
+     hx-get="{% url 'activity:requests' %}?tab=recent"
+     hx-trigger="every 30s"
+     hx-target="#tab-content"
+     hx-swap="innerHTML"
+     {% endif %}>
+    {% if table.page and table.page.number == 1 %}
+    <p style="font-size: 0.8rem; color: var(--body-quiet-color); margin-bottom: 0.75rem;">Auto-refreshes every 30s</p>
+    {% endif %}
+    {% render_table table %}
+</div>
