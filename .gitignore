@@ -55,13 +55,17 @@ git init
   # ─── Docker & Local Volumes ───────────────────────────────────────────────────
   docker-compose.yml
   docker-compose.override.yml
-- docker-composlocal.yml
-# docker-compose.example.yml is intentionally NOT ignored (tracked as reference)ml
-+ docker-compose.local.yml
-+ # docker-compose.example.yml is intentionally NOT ignored (tracked as reference)
+  docker-compose.local.yml
+  # docker-compose.example.yml is intentionally NOT ignored (tracked as reference)
   .docker/
   volumes/
   data/
+
+  # ─── Ollama model cache (Docker bind-mount, can be 2+ GB) ─────────────────────
+  ollama_data/
+
+  # ─── SmallStack / settings panel (clone separately via git clone) ─────────────
+  settings/
   
   # ─── IDE & Editor ─────────────────────────────────────────────────────────────
   .vscode/

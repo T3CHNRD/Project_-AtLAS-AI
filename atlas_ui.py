@@ -54,6 +54,9 @@ C_DANGER   = QColor("#C0392B")
 
 FONT_MONO  = "Menlo, Courier New, monospace"
 DISC_D     = 420
+HEADER_H   = 56          # height of the "ATLAS // ARCHIVES" title band
+WINDOW_W   = DISC_D
+WINDOW_H   = DISC_D + HEADER_H
 BUBBLE_W   = 360
 BUBBLE_H   = 190
 ASSETS     = Path(__file__).parent / "assets"
@@ -652,7 +655,7 @@ class FloatingDisc(QWidget):
             | Qt.WindowType.Tool,
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(DISC_D, DISC_D)
+        self.setFixedSize(WINDOW_W, WINDOW_H)
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(52)
@@ -661,7 +664,8 @@ class FloatingDisc(QWidget):
         self.setGraphicsEffect(shadow)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(0, HEADER_H, 0, 0)
+        layout.setSpacing(0)
         self._hound  = HoundWidget(self)
         layout.addWidget(self._hound)
 
@@ -688,10 +692,10 @@ class FloatingDisc(QWidget):
 
     def _center_on_screen(self) -> None:
         s = QApplication.primaryScreen().availableGeometry()
-        self.move((s.width() - DISC_D) // 2, (s.height() - DISC_D) // 2)
+        self.move((s.width() - WINDOW_W) // 2, (s.height() - WINDOW_H) // 2)
 
     def show_bubble(self, text: str, *, status: bool = False, error: bool = False) -> None:
-        anchor = self.mapToGlobal(QPoint(DISC_D, (DISC_D - BUBBLE_H) // 2))
+        anchor = self.mapToGlobal(QPoint(WINDOW_W, HEADER_H + (DISC_D - BUBBLE_H) // 2))
         self._bubble.show_text(text, status=status, error=error)
         self._bubble.slide_in(anchor)
 
@@ -727,7 +731,7 @@ class FloatingDisc(QWidget):
         ):
             self.move(event.globalPosition().toPoint() - self._drag_pos)
             if self._bubble.isVisible():
-                anchor = self.mapToGlobal(QPoint(DISC_D, (DISC_D - BUBBLE_H) // 2))
+                anchor = self.mapToGlobal(QPoint(WINDOW_W, HEADER_H + (DISC_D - BUBBLE_H) // 2))
                 self._bubble.move(anchor.x() + 16, anchor.y())
 
     def keyPressEvent(self, event) -> None:
@@ -737,7 +741,39 @@ class FloatingDisc(QWidget):
             super().keyPressEvent(event)
 
     def paintEvent(self, _) -> None:
-        pass  # HoundWidget paints the visible disc; this host stays transparent
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Charcoal rounded-rect panel
+        panel = QPainterPath()
+        panel.addRoundedRect(QRectF(self.rect()), 18, 18)
+        p.fillPath(panel, QBrush(C_VOID))
+
+        # Subtle leather border
+        border_color = QColor(C_LEATHER); border_color.setAlphaF(0.55)
+        p.setPen(QPen(border_color, 1.5))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPath(panel)
+
+        # "ATLAS // ARCHIVES" title
+        fnt = QFont()
+        fnt.setFamilies(["Menlo", "Courier New", "monospace"])
+        fnt.setPixelSize(13)
+        fnt.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 5)
+        fnt.setBold(False)
+        p.setFont(fnt)
+        p.setPen(QPen(QColor(C_PAPER)))
+        p.drawText(
+            QRectF(0, 0, WINDOW_W, HEADER_H),
+            Qt.AlignmentFlag.AlignCenter,
+            "ATLAS  //  ARCHIVES",
+        )
+
+        # Hairline separator under title
+        sep = QColor(C_LEATHER); sep.setAlphaF(0.40)
+        p.setPen(QPen(sep, 0.8))
+        p.drawLine(QPointF(24, HEADER_H - 1), QPointF(WINDOW_W - 24, HEADER_H - 1))
+        p.end()
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
